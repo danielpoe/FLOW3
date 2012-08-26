@@ -20,6 +20,7 @@ use TYPO3\FLOW3\Annotations as FLOW3;
  * An account model
  *
  * @FLOW3\Entity
+ * @ORM\InheritanceType("SINGLE_TABLE")
  */
 class Account {
 
