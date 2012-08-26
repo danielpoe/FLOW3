@@ -161,7 +161,7 @@ class ObjectSerializer {
 
 			} elseif (is_object($propertyValue)) {
 				$propertyObjectName = $this->objectManager->getObjectNameByClassName($propertyClassName);
-				if ($this->objectManager->getScope($propertyObjectName) === \TYPO3\FLOW3\Object\Configuration\Configuration::SCOPE_SINGLETON) {
+				if ($propertyObjectName != '' && $this->objectManager->getScope($propertyObjectName) === \TYPO3\FLOW3\Object\Configuration\Configuration::SCOPE_SINGLETON) {
 					continue;
 				}
 
