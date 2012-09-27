@@ -144,6 +144,11 @@ class ObjectSerializer {
 					$propertyArray[$propertyName][self::VALUE][] = spl_object_hash($storedObject);
 					$this->serializeObjectAsPropertyArray($storedObject, FALSE);
 				}
+			} elseif (is_object($propertyValue) && $propertyValue instanceof \Doctrine\Common\Collections\Collection) {
+				$propertyArray[$propertyName][self::TYPE] = 'Collection';
+				$propertyArray[$propertyName][self::CLASSNAME] = get_class($propertyValue);
+				$propertyArray[$propertyName][self::VALUE] = $this->buildStorageArrayForArrayProperty($propertyValue->toArray());
+
 			} elseif (is_object($propertyValue) && $propertyValue instanceof \ArrayObject) {
 				$propertyArray[$propertyName][self::TYPE] = 'ArrayObject';
 				$propertyArray[$propertyName][self::VALUE] = $this->buildStorageArrayForArrayProperty($propertyValue->getArrayCopy());
@@ -263,6 +268,9 @@ class ObjectSerializer {
 					break;
 				case 'array':
 					$propertyValue = $this->reconstituteArray($propertyData[self::VALUE]);
+					break;
+				case 'Collection':
+					$propertyValue = new $propertyData[self::CLASSNAME]($this->reconstituteArray($propertyData[self::VALUE]));
 					break;
 				case 'ArrayObject':
 					$propertyValue = new \ArrayObject($this->reconstituteArray($propertyData[self::VALUE]));
