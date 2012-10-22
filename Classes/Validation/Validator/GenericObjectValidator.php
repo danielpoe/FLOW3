@@ -132,7 +132,10 @@ class GenericObjectValidator extends AbstractValidator implements ObjectValidato
 			if ($validator instanceof ObjectValidatorInterface) {
 				$validator->setValidatedInstancesContainer($this->validatedInstancesContainer);
 			}
-			$messages->merge($validator->validate($value));
+			$result = $validator->validate($value);
+			if ($result->hasErrors() || $result->hasNotices() ||$result->hasWarnings()) {
+				$messages->merge($validator->validate($value));
+			}
 		}
 	}
 
