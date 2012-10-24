@@ -27,6 +27,9 @@ namespace TYPO3\FLOW3\Reflection;
  */
 class ObjectAccess {
 
+	static $gettablePropertyCache = array();
+	static $propertyGetterCache = array();
+
 	const ACCESS_GET = 0;
 	const ACCESS_SET = 1;
 	const ACCESS_PUBLIC = 2;
@@ -84,8 +87,8 @@ class ObjectAccess {
 			return NULL;
 		}
 		$propertyExists = TRUE;
-		if (is_array($subject)) {
-			if (array_key_exists($propertyName, $subject)) {
+		if (is_array($subject) || $subject instanceof \ArrayAccess) {
+			if (isset($subject[$propertyName])) {
 				return $subject[$propertyName];
 			}
 			$propertyExists = FALSE;
@@ -101,20 +104,32 @@ class ObjectAccess {
 				throw new \TYPO3\FLOW3\Reflection\Exception\PropertyNotAccessibleException('The property "' . $propertyName . '" on the subject does not exist.', 1302855001);
 			}
 		}
-		if ($subject instanceof \ArrayAccess && isset($subject[$propertyName])) {
-			return $subject[$propertyName];
+
+		$class = get_class($subject);
+		if(!isset(self::$propertyGetterCache[$class . '|' . $propertyName])) {
+			self::$propertyGetterCache[$class . '|' . $propertyName] = array();
+			$getterMethodName = 'get' . ucfirst($propertyName);
+			if (is_callable(array($subject, $getterMethodName))) {
+				self::$propertyGetterCache[$class . '|' . $propertyName]['m'] = $getterMethodName;
+			} else {
+				$getterMethodName = 'is' . ucfirst($propertyName);
+				if (is_callable(array($subject, $getterMethodName))) {
+					self::$propertyGetterCache[$class . '|' . $propertyName]['m'] = $getterMethodName;
+				} else {
+					if (is_object($subject) && array_key_exists($propertyName, get_object_vars($subject))) {
+						self::$propertyGetterCache[$class . '|' . $propertyName]['p'] = $propertyName;
+					}
+				}
+			}
 		}
-		$getterMethodName = 'get' . ucfirst($propertyName);
-		if (is_callable(array($subject, $getterMethodName))) {
-			return $subject->$getterMethodName();
-		}
-		$getterMethodName = 'is' . ucfirst($propertyName);
-		if (is_callable(array($subject, $getterMethodName))) {
-			return $subject->$getterMethodName();
-		}
-		if (is_object($subject) && array_key_exists($propertyName, get_object_vars($subject))) {
+
+		if (isset(self::$propertyGetterCache[$class . '|' . $propertyName]['m'])) {
+			$method = self::$propertyGetterCache[$class . '|' . $propertyName]['m'];
+			return $subject->$method();
+		} elseif (isset(self::$propertyGetterCache[$class . '|' . $propertyName]['p'])) {
 			return $subject->$propertyName;
 		}
+
 		$propertyExists = FALSE;
 		return NULL;
 	}
@@ -206,24 +221,30 @@ class ObjectAccess {
 		if (!is_object($object)) throw new \InvalidArgumentException('$object must be an object, ' . gettype($object). ' given.', 1237301369);
 		if ($object instanceof \stdClass) {
 			$declaredPropertyNames = array_keys(get_object_vars($object));
+			$class = 'stdClass';
+			unset(self::$gettablePropertyCache[$class]);
 		} else {
-			$declaredPropertyNames = array_keys(get_class_vars(get_class($object)));
+			$class = get_class($object);
+			$declaredPropertyNames = array_keys(get_class_vars($class));
 		}
 
-		foreach (get_class_methods($object) as $methodName) {
-			if (is_callable(array($object, $methodName))) {
-				if (substr($methodName, 0, 2) === 'is') {
-					$declaredPropertyNames[] = lcfirst(substr($methodName, 2));
-				}
-				if (substr($methodName, 0, 3) === 'get') {
-					$declaredPropertyNames[] = lcfirst(substr($methodName, 3));
+		if (!isset(self::$gettablePropertyCache[$class])) {
+			foreach (get_class_methods($object) as $methodName) {
+				if (is_callable(array($object, $methodName))) {
+					if (substr($methodName, 0, 2) === 'is') {
+						$declaredPropertyNames[] = lcfirst(substr($methodName, 2));
+					}
+					if (substr($methodName, 0, 3) === 'get') {
+						$declaredPropertyNames[] = lcfirst(substr($methodName, 3));
+					}
 				}
 			}
-		}
 
-		$propertyNames = array_unique($declaredPropertyNames);
-		sort($propertyNames);
-		return $propertyNames;
+			$propertyNames = array_unique($declaredPropertyNames);
+			sort($propertyNames);
+			self::$gettablePropertyCache[$class] = $propertyNames;
+		}
+		return self::$gettablePropertyCache[$class];
 	}
 
 	/**

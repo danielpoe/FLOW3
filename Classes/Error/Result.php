@@ -298,12 +298,21 @@ class Result {
 	 * @api
 	 */
 	public function merge(\TYPO3\FLOW3\Error\Result $otherResult) {
-		$this->mergeProperty($otherResult, 'getErrors', 'addError');
-		$this->mergeProperty($otherResult, 'getWarnings', 'addWarning');
-		$this->mergeProperty($otherResult, 'getNotices', 'addNotice');
+		if ($otherResult->hasErrors()) {
+			$this->mergeProperty($otherResult, 'getErrors', 'addError');
+		}
+		if ($otherResult->hasWarnings()) {
+			$this->mergeProperty($otherResult, 'getWarnings', 'addWarning');
+		}
+		if ($otherResult->hasNotices()) {
+			$this->mergeProperty($otherResult, 'getNotices', 'addNotice');
+		}
 
 		foreach ($otherResult->getSubResults() as $subPropertyName => $subResult) {
-			$this->forProperty($subPropertyName)->merge($subResult);
+			/** @var Result $subResult */
+			if ($subResult->hasErrors() || $subResult->hasWarnings() || $subResult->hasNotices()) {
+				$this->forProperty($subPropertyName)->merge($subResult);
+			}
 		}
 	}
 
